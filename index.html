@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrameAI – AI Storyboard Generator</title>
+<style>
+:root {
+  --bg: #080b10;
+  --s1: #0d1117;
+  --s2: #161b22;
+  --border: #21262d;
+  --accent: #58a6ff;
+  --accent2: #bc8cff;
+  --gold: #e3b341;
+  --text: #e6edf3;
+  --sub: #8b949e;
+  --muted: #484f58;
+  --success: #3fb950;
+  --danger: #f85149;
+  --r: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+header {
+  background: var(--s1);
+  border-bottom: 1px solid var(--border);
+  padding: 1.25rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.logo { display: flex; align-items: center; gap: .75rem; }
+.logo-icon {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 10px; width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; flex-shrink: 0;
+}
+.logo-text { font-size: 1.3rem; font-weight: 800; letter-spacing: 2px; }
+.logo-text span { color: var(--sub); font-weight: 400; font-size: .8rem; letter-spacing: 1px; display: block; margin-top: -2px; }
+.header-right { display: flex; align-items: center; gap: .75rem; }
+.pill {
+  background: rgba(88,166,255,.08);
+  border: 1px solid rgba(88,166,255,.2);
+  border-radius: 20px; color: var(--accent); font-size: .72rem; padding: .2rem .65rem;
+}
+.pill.purple { background: rgba(188,140,255,.08); border-color: rgba(188,140,255,.2); color: var(--accent2); }
+
+.wrap { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+.input-zone {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 20px; padding: 1.75rem; margin-bottom: 2rem;
+}
+.zone-title { font-size: .7rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 1.2rem; }
+
+.presets { display: flex; flex-wrap: wrap; gap: .45rem; margin-bottom: 1.25rem; }
+.preset {
+  background: var(--s2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--sub); cursor: pointer; font-size: .78rem; padding: .35rem .8rem;
+  transition: all .15s; user-select: none;
+}
+.preset:hover { border-color: var(--accent); color: var(--text); background: rgba(88,166,255,.06); }
+
+.main-row { display: flex; gap: .75rem; margin-bottom: 1rem; }
+.concept-input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r);
+  color: var(--text); font-family: inherit; font-size: 1rem; padding: .85rem 1.1rem;
+  transition: border-color .2s, box-shadow .2s;
+}
+.concept-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,255,.08); }
+.concept-input::placeholder { color: var(--muted); }
+
+.btn-main {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none; border-radius: var(--r); color: white; cursor: pointer;
+  font-size: .95rem; font-weight: 700; padding: .85rem 1.8rem;
+  transition: opacity .2s, transform .1s; white-space: nowrap; letter-spacing: .3px;
+}
+.btn-main:hover { opacity: .88; transform: translateY(-1px); }
+.btn-main:active { transform: translateY(0); }
+.btn-main:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+.opts { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center; }
+.opt-group { display: flex; align-items: center; gap: .5rem; }
+.opt-label { font-size: .78rem; color: var(--sub); }
+.style-chips { display: flex; gap: .35rem; flex-wrap: wrap; }
+.sty {
+  background: var(--s2); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--muted); cursor: pointer; font-size: .72rem; padding: .25rem .55rem;
+  transition: all .12s;
+}
+.sty:hover { color: var(--text); border-color: var(--accent2); }
+.sty.on { background: rgba(188,140,255,.12); border-color: var(--accent2); color: var(--accent2); }
+
+.status { display: flex; align-items: center; gap: .5rem; font-size: .75rem; color: var(--sub); margin-top: 1rem; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+.status-dot.busy { background: var(--accent); animation: blink 1s infinite; }
+.status-dot.err { background: var(--danger); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+#boardWrap { display: none; }
+.board-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;
+}
+.board-title { font-size: 1.4rem; font-weight: 700; }
+.board-subtitle { color: var(--sub); font-size: .85rem; margin-top: .2rem; }
+.board-actions { display: flex; gap: .6rem; }
+.btn-secondary {
+  background: var(--s2); border: 1px solid var(--border); border-radius: var(--r);
+  color: var(--text); cursor: pointer; font-size: .82rem; padding: .55rem 1rem;
+  transition: all .15s;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+.board-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+@media(max-width:700px) { .board-grid { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--s1); border: 1px solid var(--border); border-radius: 18px;
+  overflow: hidden; transition: border-color .2s;
+}
+.panel:hover { border-color: rgba(88,166,255,.3); }
+.panel-img-wrap { position: relative; width: 100%; aspect-ratio: 16/9; background: var(--bg); overflow: hidden; }
+.panel-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity .5s, transform .4s; }
+.panel-img-wrap img:hover { transform: scale(1.03); }
+.panel-num {
+  position: absolute; top: .75rem; left: .75rem;
+  background: rgba(8,11,16,.75); backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,.1); border-radius: 6px;
+  font-size: .7rem; font-weight: 700; padding: .2rem .55rem; letter-spacing: 1px; color: var(--sub);
+}
+.panel-regen {
+  position: absolute; top: .75rem; right: .75rem;
+  background: rgba(8,11,16,.75); backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,.1); border-radius: 8px;
+  color: var(--sub); cursor: pointer; font-size: .8rem; padding: .3rem .55rem;
+  transition: all .15s; opacity: 0;
+}
+.panel:hover .panel-regen { opacity: 1; }
+.panel-regen:hover { border-color: var(--accent); color: var(--accent); }
+.panel-regen.loading { opacity: 1; color: var(--gold); border-color: var(--gold); animation: blink 1s infinite; }
+
+.panel-loading {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .75rem;
+}
+.panel-spinner {
+  width: 40px; height: 40px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite;
+}
+.panel-load-text { font-size: .72rem; color: var(--muted); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.panel-body { padding: 1.1rem 1.25rem; }
+.panel-header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .5rem; }
+.panel-title { font-size: .95rem; font-weight: 700; line-height: 1.4; }
+.panel-dl { background: none; border: none; cursor: pointer; color: var(--muted); font-size: .9rem; padding: .1rem; transition: color .15s; flex-shrink: 0; margin-left: .5rem; }
+.panel-dl:hover { color: var(--accent); }
+.panel-caption { color: var(--sub); font-size: .82rem; line-height: 1.65; }
+
+#exportCanvas { display: none; }
+
+.empty { text-align: center; padding: 4rem 2rem; color: var(--muted); }
+.empty-icon { font-size: 4rem; margin-bottom: 1rem; opacity: .25; }
+.empty p { font-size: .9rem; line-height: 1.7; }
+
+footer { text-align: center; padding: 2.5rem 1rem; color: var(--muted); font-size: .75rem; border-top: 1px solid var(--border); margin-top: 3rem; }
+footer a { color: var(--accent); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🎬</div>
+    <div class="logo-text">
+      FRAMEAI
+      <span>AI Storyboard Generator</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="pill">Flux Image</span>
+    <span class="pill purple">Text AI</span>
+    <span class="pill">Free · No login</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="input-zone">
+    <div class="zone-title">Concept</div>
+    <div class="presets">
+      <span class="preset">🚀 Astronaut lost on an alien planet</span>
+      <span class="preset">🐉 Last knight facing a dragon</span>
+      <span class="preset">🌊 Scientist discovering a sunken city</span>
+      <span class="preset">🤖 Robot learning to paint</span>
+      <span class="preset">🌲 Child finds a magic door in the forest</span>
+      <span class="preset">🏙️ Detective in a rainy cyberpunk city</span>
+      <span class="preset">⏳ Time traveler stuck in ancient Egypt</span>
+      <span class="preset">🦈 Marine biologist in uncharted deep waters</span>
+    </div>
+
+    <div class="main-row">
+      <input type="text" class="concept-input" id="conceptInput"
+        placeholder="Describe your story, scene or concept…" maxlength="200" />
+      <button class="btn-main" id="genBtn" onclick="generate()">🎬 Generate</button>
+    </div>
+
+    <div class="opts">
+      <div class="opt-group">
+        <span class="opt-label">Style:</span>
+        <div class="style-chips" id="styleChips">
+          <span class="sty on" data-s="cinematic photorealistic">📷 Cinematic</span>
+          <span class="sty" data-s="digital painting concept art artstation">🎨 Concept Art</span>
+          <span class="sty" data-s="watercolor illustration soft">🖌️ Watercolor</span>
+          <span class="sty" data-s="dark noir moody dramatic shadows">🌑 Noir</span>
+          <span class="sty" data-s="anime illustration vibrant Studio Ghibli">✨ Anime</span>
+          <span class="sty" data-s="3D render octane volumetric">🟦 3D</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="status" id="statusBar">
+      <div class="status-dot"></div>
+      Ready · Enter a concept or pick a preset above
+    </div>
+  </div>
+
+  <div id="boardWrap">
+    <div class="board-header">
+      <div>
+        <div class="board-title" id="boardTitle">—</div>
+        <div class="board-subtitle">4 panels · Generated with Pollinations.AI</div>
+      </div>
+      <div class="board-actions">
+        <button class="btn-secondary" onclick="shareUrl()">🔗 Share</button>
+        <button class="btn-secondary" onclick="exportPNG()">⬇️ Export PNG</button>
+      </div>
+    </div>
+    <div class="board-grid" id="boardGrid"></div>
+  </div>
+
+  <div class="empty" id="emptyState">
+    <div class="empty-icon">🎬</div>
+    <p>Enter a concept above<br>and generate your storyboard in seconds.</p>
+  </div>
+
+</div>
+
+<canvas id="exportCanvas"></canvas>
+
+<footer>
+  Powered by <a href="https://pollinations.ai" target="_blank">Pollinations.AI</a>
+  · Image API (Flux) + Text API ·
+  <a href="https://github.com/pollinations/pollinations" target="_blank">Open Source</a>
+</footer>
+
+<script>
+const REFERRER = 'frameai-storyboard';
+let currentStyle = 'cinematic photorealistic';
+let panels = [];
+
+document.querySelectorAll('.sty').forEach(c => {
+  c.addEventListener('click', () => {
+    document.querySelectorAll('.sty').forEach(x => x.classList.remove('on'));
+    c.classList.add('on');
+    currentStyle = c.dataset.s;
+  });
+});
+
+document.querySelectorAll('.preset').forEach(p => {
+  p.addEventListener('click', () => {
+    document.getElementById('conceptInput').value = p.textContent.replace(/^\S+\s/, '').trim();
+  });
+});
+
+document.getElementById('conceptInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') generate();
+});
+
+window.addEventListener('load', () => {
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (h) { document.getElementById('conceptInput').value = h; generate(); }
+});
+
+function setStatus(busy, msg, err) {
+  const bar = document.getElementById('statusBar');
+  const cls = err ? 'err' : busy ? 'busy' : '';
+  bar.innerHTML = `<div class="status-dot ${cls}"></div> ${msg}`;
+}
+
+async function generate() {
+  const concept = document.getElementById('conceptInput').value.trim();
+  if (!concept) return;
+
+  document.getElementById('genBtn').disabled = true;
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('boardWrap').style.display = 'block';
+  setStatus(true, 'Generating scenes…');
+
+  panels = [];
+  renderSkeleton();
+
+  try {
+    const scenes = await fetchScenes(concept);
+    panels = scenes;
+    document.getElementById('boardTitle').textContent = scenes[0]?.storyTitle || concept;
+    renderPanels(scenes);
+    setStatus(false, `✅ Storyboard ready · ${scenes.length} panels`);
+  } catch(e) {
+    setStatus(false, '❌ ' + (e.message || 'Error — please retry'), true);
+    document.getElementById('boardWrap').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'block';
+  }
+  document.getElementById('genBtn').disabled = false;
+}
+
+async function fetchScenes(concept) {
+  const sysMsg = `You are a professional storyboard director. Reply ONLY with exactly 4 lines of plain text. Each line has exactly 3 parts separated by " || ":
+Part 1: Short scene title (4-6 words, English)
+Part 2: Detailed cinematic image generation prompt in English (25-40 words, vivid, ${currentStyle})
+Part 3: Narrative caption (20-30 words, English, evocative prose)
+NO numbering. NO extra text. NO blank lines. EXACTLY 4 lines.`;
+
+  const res = await fetch('https://text.pollinations.ai/openai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'openai',
+      messages: [
+        { role: 'system', content: sysMsg },
+        { role: 'user', content: `Create a 4-panel storyboard for: "${concept}"` }
+      ],
+      referrer: REFERRER
+    })
+  });
+
+  if (!res.ok) throw new Error('Text API unreachable');
+  const data = await res.json();
+  const raw = (data.choices?.[0]?.message?.content || '').trim();
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l.includes('||'));
+
+  if (lines.length < 2) throw new Error('Invalid response — please retry');
+
+  return lines.slice(0, 4).map((line, i) => {
+    const parts = line.split('||').map(p => p.trim());
+    return {
+      storyTitle: concept,
+      title: parts[0] || `Scene ${i + 1}`,
+      imgPrompt: (parts[1] || concept) + `, ${currentStyle}, ultra detailed, 4k`,
+      caption: parts[2] || '',
+      seed: Math.floor(Math.random() * 999999)
+    };
+  });
+}
+
+function renderSkeleton() {
+  const grid = document.getElementById('boardGrid');
+  document.getElementById('boardTitle').textContent = '…';
+  grid.innerHTML = [1,2,3,4].map(i => `
+    <div class="panel" id="panel-${i-1}">
+      <div class="panel-img-wrap">
+        <div class="panel-loading">
+          <div class="panel-spinner"></div>
+          <div class="panel-load-text">Panel ${i}</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div style="height:1rem;width:60%;background:var(--border);border-radius:4px;margin-bottom:.6rem"></div>
+        <div style="height:.75rem;width:100%;background:var(--border);border-radius:4px;margin-bottom:.35rem"></div>
+        <div style="height:.75rem;width:80%;background:var(--border);border-radius:4px"></div>
+      </div>
+    </div>`).join('');
+}
+
+function renderPanels(scenes) {
+  const grid = document.getElementById('boardGrid');
+  grid.innerHTML = scenes.map((sc, i) => `
+    <div class="panel" id="panel-${i}">
+      <div class="panel-img-wrap" id="imgwrap-${i}">
+        <div class="panel-loading">
+          <div class="panel-spinner"></div>
+          <div class="panel-load-text">Flux generating…</div>
+        </div>
+        <span class="panel-num">0${i+1}</span>
+        <button class="panel-regen" id="regen-${i}" onclick="regenPanel(${i})">↻</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-header-row">
+          <div class="panel-title">${sc.title}</div>
+          <button class="panel-dl" title="Download" onclick="dlPanel(${i})">⬇</button>
+        </div>
+        <div class="panel-caption">${sc.caption}</div>
+      </div>
+    </div>`).join('');
+
+  scenes.forEach((sc, i) => loadPanelImage(i, sc));
+}
+
+function loadPanelImage(idx, sc) {
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(sc.imgPrompt)}?width=896&height=504&model=flux&seed=${sc.seed}&nologo=true&referrer=${REFERRER}`;
+  panels[idx].url = url;
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    const wrap = document.getElementById('imgwrap-' + idx);
+    if (!wrap) return;
+    wrap.innerHTML = `
+      <img src="${url}" alt="${panels[idx].title}">
+      <span class="panel-num">0${idx+1}</span>
+      <button class="panel-regen" id="regen-${idx}" onclick="regenPanel(${idx})">↻</button>`;
+    panels[idx].imgEl = wrap.querySelector('img');
+  };
+  img.onerror = () => {
+    const wrap = document.getElementById('imgwrap-' + idx);
+    if (wrap) wrap.querySelector('.panel-load-text').textContent = '⚠ Retry';
+  };
+  img.src = url;
+}
+
+function regenPanel(idx) {
+  const btn = document.getElementById('regen-' + idx);
+  if (btn) { btn.classList.add('loading'); btn.textContent = '⏳'; }
+  panels[idx].seed = Math.floor(Math.random() * 999999);
+  panels[idx].url = null;
+  const wrap = document.getElementById('imgwrap-' + idx);
+  if (wrap) {
+    wrap.innerHTML = `
+      <div class="panel-loading">
+        <div class="panel-spinner"></div>
+        <div class="panel-load-text">Regenerating…</div>
+      </div>
+      <span class="panel-num">0${idx+1}</span>
+      <button class="panel-regen loading" id="regen-${idx}" onclick="regenPanel(${idx})">⏳</button>`;
+  }
+  loadPanelImage(idx, panels[idx]);
+  setTimeout(() => {
+    const b = document.getElementById('regen-' + idx);
+    if (b) { b.classList.remove('loading'); b.textContent = '↻'; }
+  }, 6000);
+}
+
+function dlPanel(idx) {
+  const url = panels[idx]?.url;
+  if (!url) return;
+  const a = document.createElement('a');
+  a.href = url; a.target = '_blank';
+  a.download = `frameai-panel-${idx+1}.jpg`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function shareUrl() {
+  const concept = document.getElementById('conceptInput').value.trim();
+  if (!concept) return;
+  const url = `${location.origin}${location.pathname}#${encodeURIComponent(concept)}`;
+  navigator.clipboard.writeText(url).then(() => setStatus(false, '🔗 URL copied to clipboard'));
+}
+
+async function exportPNG() {
+  const imgs = panels.map(p => p.imgEl).filter(Boolean);
+  if (imgs.length < 2) { setStatus(false, '⚠ Wait for images to load', true); return; }
+  setStatus(true, 'Exporting PNG…');
+  try {
+    const W = 896, H = 504, GAP = 12, PAD = 24;
+    const canvas = document.getElementById('exportCanvas');
+    canvas.width  = W * 2 + GAP + PAD * 2;
+    canvas.height = H * 2 + GAP + PAD * 2 + 60;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#e6edf3';
+    ctx.font = 'bold 28px -apple-system, Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(panels[0]?.storyTitle || 'Storyboard', canvas.width / 2, PAD + 36);
+
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '16px -apple-system, Segoe UI, sans-serif';
+    ctx.fillText('Generated with FrameAI · pollinations.ai', canvas.width / 2, PAD + 56);
+
+    const positions = [
+      [PAD, PAD + 60],
+      [PAD + W + GAP, PAD + 60],
+      [PAD, PAD + 60 + H + GAP],
+      [PAD + W + GAP, PAD + 60 + H + GAP],
+    ];
+
+    for (let i = 0; i < Math.min(4, imgs.length); i++) {
+      const [x, y] = positions[i];
+      try {
+        ctx.drawImage(imgs[i], x, y, W, H);
+        ctx.fillStyle = 'rgba(0,0,0,.55)';
+        ctx.fillRect(x + 8, y + 8, 32, 22);
+        ctx.fillStyle = '#8b949e';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText('0' + (i + 1), x + 14, y + 23);
+      } catch(e) {}
+    }
+
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `frameai-storyboard.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatus(false, '✅ PNG exported successfully');
+    }, 'image/png');
+  } catch(e) {
+    setStatus(false, '⚠ Export failed — try downloading panels individually', true);
+  }
+}
+</script>
+</body>
+</html>
