@@ -329,20 +329,20 @@ async function generate() {
 }
 
 async function fetchScenes(concept) {
-  const sysMsg = `You are a storyboard director. Generate exactly 4 scenes.
-Return ONLY 4 lines. Each line: TITLE || IMAGE_PROMPT || CAPTION
-Use || to separate. No markdown, no numbering, no extra text.`;
-
-  const userMsg = `Create 4-panel storyboard for: "${concept}". Each panel: title || image prompt (25-40 words, ${currentStyle}, cinematic, 4k) || narrative caption (20-30 words).`;
+  const prompt = `Create a 4-panel storyboard for: "${concept}".
+Return a JSON array of exactly 4 objects with these fields:
+- "title": short scene title (4-6 words)
+- "imgPrompt": detailed image prompt (25-40 words, ${currentStyle}, cinematic, 4k)
+- "caption": narrative caption (20-30 words)
+Return ONLY the JSON array. No explanation, no markdown.`;
 
   try {
-    const url = new URL('https://text.pollinations.ai/' + encodeURIComponent(userMsg));
+    const url = new URL('https://text.pollinations.ai/' + encodeURIComponent(prompt));
     url.searchParams.set('model', 'openai-fast');
-    url.searchParams.set('system', sysMsg);
-    url.searchParams.set('temperature', '0.7');
+    url.searchParams.set('json', 'true');
+    url.searchParams.set('seed', String(Math.floor(Math.random() * 99999)));
 
-    console.log('🔄 Fetching:', url.toString().substring(0, 100) + '...');
-    
+    console.log('🔄 Fetching text API...');
     const res = await fetch(url.toString());
 
     if (!res.ok) {
@@ -351,30 +351,26 @@ Use || to separate. No markdown, no numbering, no extra text.`;
       throw new Error(`API ${res.status}`);
     }
 
-    let raw = await res.text();
-    console.log('✅ API responded. First 150 chars:', raw.substring(0, 150));
-    
-    raw = raw.replace(/^```.*\n?/gi, '').replace(/```$/i, '').trim();
-    
-    const lines = raw.split('\n').map(l => l.trim()).filter(l => l && l.includes('||'));
+    const data = await res.json();
+    console.log('✅ JSON received:', JSON.stringify(data).substring(0, 200));
 
-    console.log(`✅ Found ${lines.length} valid lines (need 4)`);
+    // Gère les différentes structures possibles
+    const arr = Array.isArray(data) ? data
+      : (data.scenes || data.panels || data.storyboard || Object.values(data));
 
-    if (lines.length < 4) {
-      console.error('Raw response:', raw);
-      throw new Error(`Only ${lines.length} lines, need 4`);
+    if (!arr || arr.length < 4) {
+      console.error('Bad structure:', data);
+      throw new Error(`Got ${arr?.length || 0} scenes, need 4`);
     }
 
-    return lines.slice(0, 4).map((line, i) => {
-      const parts = line.split('||').map(p => p.trim());
-      return {
-        storyTitle: concept,
-        title: parts[0] || `Scene ${i + 1}`,
-        imgPrompt: (parts[1] || concept) + `, ${currentStyle}, ultra detailed, 4k`,
-        caption: parts[2] || '',
-        seed: Math.floor(Math.random() * 999999)
-      };
-    });
+    return arr.slice(0, 4).map((sc, i) => ({
+      storyTitle: concept,
+      title: sc.title || `Scene ${i + 1}`,
+      imgPrompt: (sc.imgPrompt || sc.image_prompt || sc.imagePrompt || sc.prompt || concept) + `, ${currentStyle}, ultra detailed, 4k`,
+      caption: sc.caption || sc.description || sc.narrative || '',
+      seed: Math.floor(Math.random() * 999999)
+    }));
+
   } catch (e) {
     console.error('❌ fetchScenes error:', e.message);
     throw e;
