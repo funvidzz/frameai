@@ -329,20 +329,18 @@ async function generate() {
 }
 
 async function fetchScenes(concept) {
-  const sysMsg = `You are a professional storyboard director. Reply ONLY with exactly 4 lines of plain text. Each line has exactly 3 parts separated by " || ":
-Part 1: Short scene title (4-6 words, English)
-Part 2: Detailed cinematic image generation prompt in English (25-40 words, vivid, ${currentStyle})
-Part 3: Narrative caption (20-30 words, English, evocative prose)
-NO numbering. NO extra text. NO blank lines. EXACTLY 4 lines.`;
+  const sysMsg = `You are a storyboard director. Generate exactly 4 scenes.
+Return ONLY 4 lines. Each line: TITLE || IMAGE_PROMPT || CAPTION
+Use || to separate. No markdown, no numbering, no extra text.`;
 
   const res = await fetch('https://text.pollinations.ai/openai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'openai',
+      model: 'openai-fast',
       messages: [
         { role: 'system', content: sysMsg },
-        { role: 'user', content: `Create a 4-panel storyboard for: "${concept}"` }
+        { role: 'user', content: `Create 4-panel storyboard for: "${concept}". Each panel: title || image prompt (25-40 words, ${currentStyle}, cinematic, 4k) || narrative caption (20-30 words).` }
       ],
       referrer: REFERRER
     })
@@ -350,10 +348,16 @@ NO numbering. NO extra text. NO blank lines. EXACTLY 4 lines.`;
 
   if (!res.ok) throw new Error('Text API unreachable');
   const data = await res.json();
-  const raw = (data.choices?.[0]?.message?.content || '').trim();
-  const lines = raw.split('\n').map(l => l.trim()).filter(l => l.includes('||'));
+  let raw = (data.choices?.[0]?.message?.content || '').trim();
+  
+  raw = raw.replace(/^```.*\n?/i, '').replace(/```$/i, '').trim();
+  
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l && l.includes('||'));
 
-  if (lines.length < 2) throw new Error('Invalid response — please retry');
+  if (lines.length < 4) {
+    console.error('Raw response:', raw);
+    throw new Error(`Need 4 scenes, got ${lines.length}`);
+  }
 
   return lines.slice(0, 4).map((line, i) => {
     const parts = line.split('||').map(p => p.trim());
