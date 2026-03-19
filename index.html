@@ -336,7 +336,7 @@ Use || to separate. No markdown, no numbering, no extra text.`;
   const userMsg = `Create 4-panel storyboard for: "${concept}". Each panel: title || image prompt (25-40 words, ${currentStyle}, cinematic, 4k) || narrative caption (20-30 words).`;
 
   try {
-    const url = new URL('https://gen.pollinations.ai/text/' + encodeURIComponent(userMsg));
+    const url = new URL('https://text.pollinations.ai/' + encodeURIComponent(userMsg));
     url.searchParams.set('model', 'openai-fast');
     url.searchParams.set('system', sysMsg);
     url.searchParams.set('temperature', '0.7');
