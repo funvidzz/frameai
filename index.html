@@ -333,42 +333,52 @@ async function fetchScenes(concept) {
 Return ONLY 4 lines. Each line: TITLE || IMAGE_PROMPT || CAPTION
 Use || to separate. No markdown, no numbering, no extra text.`;
 
-  const res = await fetch('https://text.pollinations.ai/openai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'openai-fast',
-      messages: [
-        { role: 'system', content: sysMsg },
-        { role: 'user', content: `Create 4-panel storyboard for: "${concept}". Each panel: title || image prompt (25-40 words, ${currentStyle}, cinematic, 4k) || narrative caption (20-30 words).` }
-      ],
-      referrer: REFERRER
-    })
-  });
+  const userMsg = `Create 4-panel storyboard for: "${concept}". Each panel: title || image prompt (25-40 words, ${currentStyle}, cinematic, 4k) || narrative caption (20-30 words).`;
 
-  if (!res.ok) throw new Error('Text API unreachable');
-  const data = await res.json();
-  let raw = (data.choices?.[0]?.message?.content || '').trim();
-  
-  raw = raw.replace(/^```.*\n?/i, '').replace(/```$/i, '').trim();
-  
-  const lines = raw.split('\n').map(l => l.trim()).filter(l => l && l.includes('||'));
+  try {
+    const url = new URL('https://gen.pollinations.ai/text/' + encodeURIComponent(userMsg));
+    url.searchParams.set('model', 'openai-fast');
+    url.searchParams.set('system', sysMsg);
+    url.searchParams.set('temperature', '0.7');
 
-  if (lines.length < 4) {
-    console.error('Raw response:', raw);
-    throw new Error(`Need 4 scenes, got ${lines.length}`);
+    console.log('🔄 Fetching:', url.toString().substring(0, 100) + '...');
+    
+    const res = await fetch(url.toString());
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`❌ API Error ${res.status}:`, errText.substring(0, 100));
+      throw new Error(`API ${res.status}`);
+    }
+
+    let raw = await res.text();
+    console.log('✅ API responded. First 150 chars:', raw.substring(0, 150));
+    
+    raw = raw.replace(/^```.*\n?/gi, '').replace(/```$/i, '').trim();
+    
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l && l.includes('||'));
+
+    console.log(`✅ Found ${lines.length} valid lines (need 4)`);
+
+    if (lines.length < 4) {
+      console.error('Raw response:', raw);
+      throw new Error(`Only ${lines.length} lines, need 4`);
+    }
+
+    return lines.slice(0, 4).map((line, i) => {
+      const parts = line.split('||').map(p => p.trim());
+      return {
+        storyTitle: concept,
+        title: parts[0] || `Scene ${i + 1}`,
+        imgPrompt: (parts[1] || concept) + `, ${currentStyle}, ultra detailed, 4k`,
+        caption: parts[2] || '',
+        seed: Math.floor(Math.random() * 999999)
+      };
+    });
+  } catch (e) {
+    console.error('❌ fetchScenes error:', e.message);
+    throw e;
   }
-
-  return lines.slice(0, 4).map((line, i) => {
-    const parts = line.split('||').map(p => p.trim());
-    return {
-      storyTitle: concept,
-      title: parts[0] || `Scene ${i + 1}`,
-      imgPrompt: (parts[1] || concept) + `, ${currentStyle}, ultra detailed, 4k`,
-      caption: parts[2] || '',
-      seed: Math.floor(Math.random() * 999999)
-    };
-  });
 }
 
 function renderSkeleton() {
